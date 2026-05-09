@@ -1,60 +1,20 @@
 -- =====================================================
--- BANCO DE DADOS: EMPRESA
+-- PROJETO: AGREGAÇÃO E AUTORRELACIONAMENTO
 -- PostgreSQL
 -- =====================================================
 
 
 -- =====================================================
--- TABELA PESSOA
--- =====================================================
-
-CREATE TABLE pessoa (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL,
-    cpf VARCHAR(14) UNIQUE NOT NULL,
-    data_nascimento DATE NOT NULL,
-    email VARCHAR(100),
-    telefone VARCHAR(20)
-);
-
-
--- =====================================================
--- TABELA SETOR
--- Cada setor deve possuir supervisores
--- =====================================================
-
-CREATE TABLE setor (
-    id SERIAL PRIMARY KEY,
-    nome VARCHAR(100) NOT NULL UNIQUE
-);
-
-
--- =====================================================
 -- TABELA FUNCIONARIO
--- Todo funcionário pertence a um setor
--- e possui um supervisor
+-- Autorelacionamento:
+-- um funcionário pode supervisionar outros
 -- =====================================================
 
 CREATE TABLE funcionario (
     id SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
 
-    pessoa_id INT UNIQUE NOT NULL,
-
-    setor_id INT NOT NULL,
-
-    supervisor_id INT NOT NULL,
-
-    cargo VARCHAR(100),
-    salario NUMERIC(10,2),
-    data_admissao DATE,
-
-    CONSTRAINT fk_funcionario_pessoa
-        FOREIGN KEY (pessoa_id)
-        REFERENCES pessoa(id),
-
-    CONSTRAINT fk_funcionario_setor
-        FOREIGN KEY (setor_id)
-        REFERENCES setor(id),
+    supervisor_id INTEGER,
 
     CONSTRAINT fk_supervisor
         FOREIGN KEY (supervisor_id)
@@ -64,23 +24,20 @@ CREATE TABLE funcionario (
 
 -- =====================================================
 -- TABELA DEPENDENTE
+-- Dependência de existência:
+-- o dependente só existe se o funcionário existir
 -- =====================================================
 
 CREATE TABLE dependente (
     id SERIAL PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
 
-    pessoa_id INT NOT NULL,
-    funcionario_id INT NOT NULL,
+    funcionario_id INTEGER NOT NULL,
 
-    parentesco VARCHAR(50),
-
-    CONSTRAINT fk_dependente_pessoa
-        FOREIGN KEY (pessoa_id)
-        REFERENCES pessoa(id),
-
-    CONSTRAINT fk_dependente_funcionario
+    CONSTRAINT fk_funcionario
         FOREIGN KEY (funcionario_id)
         REFERENCES funcionario(id)
+        ON DELETE CASCADE
 );
 
 
@@ -96,13 +53,15 @@ CREATE TABLE projeto (
 
 -- =====================================================
 -- TABELA ALOCACAO
+-- Representa a agregação entre
+-- funcionário e projeto
 -- =====================================================
 
 CREATE TABLE alocacao (
     id SERIAL PRIMARY KEY,
 
-    funcionario_id INT NOT NULL,
-    projeto_id INT NOT NULL,
+    funcionario_id INTEGER NOT NULL,
+    projeto_id INTEGER NOT NULL,
 
     CONSTRAINT fk_alocacao_funcionario
         FOREIGN KEY (funcionario_id)
@@ -116,6 +75,7 @@ CREATE TABLE alocacao (
 
 -- =====================================================
 -- TABELA EQUIPAMENTO
+-- Equipamentos ligados à alocação
 -- =====================================================
 
 CREATE TABLE equipamento (
@@ -123,9 +83,61 @@ CREATE TABLE equipamento (
 
     nome_equipamento VARCHAR(100) NOT NULL,
 
-    alocacao_id INT,
+    alocacao_id INTEGER NOT NULL,
 
     CONSTRAINT fk_equipamento_alocacao
         FOREIGN KEY (alocacao_id)
         REFERENCES alocacao(id)
 );
+
+
+-- =====================================================
+-- INSERTS PARA TESTE
+-- =====================================================
+
+INSERT INTO funcionario(nome)
+VALUES ('Carlos');
+
+INSERT INTO funcionario(nome, supervisor_id)
+VALUES ('Ana', 1);
+
+INSERT INTO dependente(nome, funcionario_id)
+VALUES ('Pedro', 1);
+
+INSERT INTO projeto(nome_projeto)
+VALUES ('Sistema RH');
+
+INSERT INTO alocacao(funcionario_id, projeto_id)
+VALUES (1, 1);
+
+INSERT INTO equipamento(nome_equipamento, alocacao_id)
+VALUES ('Notebook Dell', 1);
+
+
+-- =====================================================
+-- SELECT COM AUTORRELACIONAMENTO
+-- =====================================================
+
+SELECT 
+    f.nome AS funcionario,
+    s.nome AS supervisor
+FROM funcionario f
+LEFT JOIN funcionario s
+ON f.supervisor_id = s.id;
+
+
+-- =====================================================
+-- SELECT DA AGREGAÇÃO
+-- =====================================================
+
+SELECT
+    f.nome AS funcionario,
+    p.nome_projeto,
+    e.nome_equipamento
+FROM equipamento e
+JOIN alocacao a
+    ON e.alocacao_id = a.id
+JOIN funcionario f
+    ON a.funcionario_id = f.id
+JOIN projeto p
+    ON a.projeto_id = p.id;
